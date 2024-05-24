@@ -700,7 +700,7 @@ syncData = async (req, res) =>
 
         const changeLogArrayParsed = typeof(changeLogArray) != 'object' ? JSON.parse(changeLogArray) : changeLogArray;
 
-        console.log('changeLogArrayParsed', changeLogArrayParsed);
+        // console.log('changeLogArrayParsed', changeLogArrayParsed);
 
         if(changeLogArrayParsed != undefined)
         {
@@ -724,6 +724,22 @@ syncData = async (req, res) =>
 
                 if(inputAction == action.INSERT)
                 {
+                    const user = await User.findOne(
+                        {
+                            where:
+                            {
+                                email: data.email
+                            }
+                        }
+                    );
+       
+                    // console.log('user', user);
+
+                    if(user)
+                    {
+                        continue;
+                    }
+                    
                     const userData = await User.create(
                         {
                             username: data.username,
@@ -858,6 +874,37 @@ syncData = async (req, res) =>
                                 isSynced: true,
                                 data: JSON.stringify(data),
                                 updatedFields: updatedFieldsString, 
+                                createdAt: new Date(changeLogArrayParsed[i].createdAt),
+                                updatedAt: new Date(changeLogArrayParsed[i].updatedAt)
+                            }
+                        );
+                
+                        // console.log('changeLogData', changeLogData);
+                    }
+                    else
+                    {
+                        const userData = await User.create(
+                            {
+                                username: data.username,
+                                email: data.email,
+                                age: data.age,
+                                city: data.city,
+                                isActive: isActive,
+                                createdAt: new Date(data.createdAt),
+                                updatedAt: new Date(data.updatedAt)
+                            }
+                        );
+                
+                        // console.log('userData', userData);
+                
+                        const changeLogData = await ChangeLog.create(
+                            {
+                                userId: userData.id,
+                                action: inputAction,
+                                tableName: inputTableName,
+                                isSynced: true,
+                                data: JSON.stringify(data),
+                                updatedFields: updatedFieldsString,
                                 createdAt: new Date(changeLogArrayParsed[i].createdAt),
                                 updatedAt: new Date(changeLogArrayParsed[i].updatedAt)
                             }
