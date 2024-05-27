@@ -724,6 +724,16 @@ syncData = async (req, res) =>
 
         console.log('changeLogArrayParsed', changeLogArrayParsed);
 
+        // Incoming array of objects from FE will contain an action in each object
+        // Based on the action, whether it is INSERT, UPDATE or DELETE
+        // corresponding action will be performed in the BE
+        // For each action an object will be added to BE ChangeLogs table
+        // and respective action will be performed in the users table
+        // isSynced will be set as true only while creating records in ChangeLogs table
+        // Note: We are not copy pasting object received from FE directly to ChangeLogs table
+        // instead we are creating them manually after making changes in the Users table
+        // This is because User ID to be stored in ChangeLogs will be different for BE and FE
+
         if(changeLogArrayParsed != undefined)
         {
             for(let i=0; i<=changeLogArrayParsed?.length-1; i++)
