@@ -316,7 +316,7 @@ getChangeLogsV3 = async (req, res) =>
 
         // console.log('changeLogData', changeLogData);
 
-        // Converting data object coming from ChangeLog table records from String to Object
+        // Converting 'data' field object coming from ChangeLog table records from String to Object
         // And fetching IDs of ChangeLog table records in an array
 
         let changeLogDataIDs = [];
@@ -346,6 +346,11 @@ getChangeLogsV3 = async (req, res) =>
 
         // console.log('updateChangeLogs', updateChangeLogs);
 
+        // Creating a map object
+        // In this map object we will have Email IDs which are present in changeLogs array as keys.
+        // And the values against these email keys will be arrays containing objects 
+        // for each action which is performed and is present for that particular email ID
+
         let emailMap1 = {};
 
         for(let i=0; i<=changeLogData.length-1; i++)
@@ -367,6 +372,14 @@ getChangeLogsV3 = async (req, res) =>
         }
 
         console.log('emailMap1', emailMap1);
+
+        // Parsing through the Email Map object
+        // Parsing through the array of each object and checking if action is UPDATE or DELETE
+        // Parsing through the updatedFields array of each object of action type UPDATE or DELETE
+        // While parsing through each updatedFields array, we collect the field name and store it one array
+        // This array is being stored in a seperate Email Map Object containing same Email keys as previous map object
+        // This array will contain only unique field names
+        // If action is DELETE then 'isActive' field name is being added
 
         let emailMap2 = {};
 
@@ -412,6 +425,10 @@ getChangeLogsV3 = async (req, res) =>
 
         console.log('emailMap2', emailMap2);
 
+        // Parsing through the Email Map object
+        // Parsing through the array of each object and filtering each array
+        // to keep only a single object with the latest updatedAt date
+
         let emailMap3 = {};
 
         for (const email in emailMap1)
@@ -433,6 +450,8 @@ getChangeLogsV3 = async (req, res) =>
 
         console.log('emailMap3', emailMap3);
 
+        // Merging the new email map containing only updatedFields array with the existing email map
+
         for (const email in emailMap2)
         {
             if (emailMap3.hasOwnProperty(email))
@@ -442,6 +461,9 @@ getChangeLogsV3 = async (req, res) =>
         }
 
         console.log('Merged emailMap3', emailMap3);
+
+        // Converting email map object to an array of object
+        // Here values of each email object in the map is added to the filteredArray
         
         let filteredArray = Object.values(emailMap3);
 
@@ -700,7 +722,7 @@ syncData = async (req, res) =>
 
         const changeLogArrayParsed = typeof(changeLogArray) != 'object' ? JSON.parse(changeLogArray) : changeLogArray;
 
-        // console.log('changeLogArrayParsed', changeLogArrayParsed);
+        console.log('changeLogArrayParsed', changeLogArrayParsed);
 
         if(changeLogArrayParsed != undefined)
         {
