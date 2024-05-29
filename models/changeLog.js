@@ -11,9 +11,9 @@ const ChangeLog = sequelize.define('ChangeLog',
     primaryKey: true,
     autoIncrement: true
   },
-  userId:
+  tableId:
   {
-    type: DataTypes.INTEGER,
+    type: DataTypes.STRING,
     allowNull: false
   },
   action:
