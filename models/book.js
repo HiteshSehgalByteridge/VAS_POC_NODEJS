@@ -22,7 +22,7 @@ const Book = sequelize.define('Book',
   },
   releaseYear:
   {
-    type: DataTypes.NUMBER,
+    type: DataTypes.STRING,
     allowNull: false
   },
   isActive:
