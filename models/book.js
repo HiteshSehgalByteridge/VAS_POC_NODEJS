@@ -7,15 +7,13 @@ const Book = sequelize.define('Book',
 {
   id:
   {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
+    type: DataTypes.STRING,
+    primaryKey: true
   },
   title:
   {
     type: DataTypes.STRING,
-    allowNull: false,
-    unique: true
+    allowNull: false
   },
   author:
   {

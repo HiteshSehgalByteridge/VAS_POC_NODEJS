@@ -1,7 +1,11 @@
 
 const { action, table_name } = require('../enum');
+
 const { ChangeLog } = require('../models/changeLog');
+
 const { Book } = require('../models/book');
+
+const { v4: uuidv4 } = require('uuid');
 
 getBooks = async (req, res) =>
 {
@@ -35,8 +39,11 @@ createBook = async (req, res) =>
     {
         const { title, author, releaseYear } = req.body;
 
+        const id = uuidv4();
+
         const bookData = await Book.create(
             {
+                id: id,
                 title: title,
                 author: author,
                 releaseYear: releaseYear,
@@ -48,15 +55,17 @@ createBook = async (req, res) =>
 
         // console.log('bookData', bookData);
 
-        const changeLogData = await ChangeLog.create({
-            userId: bookData.id,
-            action: action.INSERT,
-            tableName: table_name.BOOKS,
-            isSynced: false,
-            data: JSON.stringify(bookData),
-            createdAt: new Date(),
-            updatedAt: new Date()
-        });
+        const changeLogData = await ChangeLog.create(
+            {
+                tableId: bookData.id,
+                action: action.INSERT,
+                tableName: table_name.BOOKS,
+                isSynced: false,
+                data: JSON.stringify(bookData),
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }
+        );
 
         // console.log('changeLogData', changeLogData);
 
@@ -123,24 +132,28 @@ updateBook = async (req, res) =>
 
         // console.log('bookData', bookData);
 
-        const changeLogData = await ChangeLog.create({
-            userId: bookData.id,
-            action: action.UPDATE,
-            tableName: table_name.BOOKS,
-            updatedFields: updatedFields.join(','),
-            isSynced: false,
-            data: JSON.stringify(bookData),
-            createdAt: new Date(),
-            updatedAt: new Date()
-        });
+        const changeLogData = await ChangeLog.create(
+            {
+                tableId: bookData.id,
+                action: action.UPDATE,
+                tableName: table_name.BOOKS,
+                updatedFields: updatedFields.join(','),
+                isSynced: false,
+                data: JSON.stringify(bookData),
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }
+        );
 
         // console.log('changeLogData', changeLogData);
 
-        res.status(200).send({
-            success: true,
-            message: 'Book updated successfully',
-            data: bookData
-        });
+        res.status(200).send(
+            {
+                success: true,
+                message: 'Book updated successfully',
+                data: bookData
+            }
+        );
     }
     catch (error)
     {
@@ -183,15 +196,17 @@ deleteBook = async (req, res) =>
 
         // console.log('bookData', bookData);
 
-        const changeLogData = await ChangeLog.create({
-            userId: bookData.id,
-            action: action.DELETE,
-            tableName: table_name.BOOKS,
-            isSynced: false,
-            data: JSON.stringify(bookData),
-            createdAt: new Date(),
-            updatedAt: new Date()
-        });
+        const changeLogData = await ChangeLog.create(
+            {
+                tableId: bookData.id,
+                action: action.DELETE,
+                tableName: table_name.BOOKS,
+                isSynced: false,
+                data: JSON.stringify(bookData),
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }
+        );
         
         // console.log('changeLogData', changeLogData);
 

@@ -1,7 +1,11 @@
 
 const { action, table_name } = require('../enum');
+
 const { ChangeLog } = require('../models/changeLog');
+
 const { User } = require('../models/user');
+
+const { v4: uuidv4 } = require('uuid');
 
 getUsers = async (req, res) =>
 {
@@ -35,8 +39,11 @@ createUser = async (req, res) =>
     {
         const { username, email, age, city } = req.body;
 
+        const id = uuidv4();
+
         const userData = await User.create(
             {
+                id: id,
                 username: username,
                 email: email,
                 age: age,
@@ -49,15 +56,17 @@ createUser = async (req, res) =>
 
         // console.log('userData', userData);
 
-        const changeLogData = await ChangeLog.create({
-            userId: userData.id,
-            action: action.INSERT,
-            tableName: table_name.USERS,
-            isSynced: false,
-            data: JSON.stringify(userData),
-            createdAt: new Date(),
-            updatedAt: new Date()
-        });
+        const changeLogData = await ChangeLog.create(
+            {
+                tableId: userData.id,
+                action: action.INSERT,
+                tableName: table_name.USERS,
+                isSynced: false,
+                data: JSON.stringify(userData),
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }
+        );
 
         // console.log('changeLogData', changeLogData);
 
@@ -131,24 +140,28 @@ updateUser = async (req, res) =>
 
         // console.log('userData', userData);
 
-        const changeLogData = await ChangeLog.create({
-            userId: userData.id,
-            action: action.UPDATE,
-            tableName: table_name.USERS,
-            updatedFields: updatedFields.join(','),
-            isSynced: false,
-            data: JSON.stringify(userData),
-            createdAt: new Date(),
-            updatedAt: new Date()
-        });
+        const changeLogData = await ChangeLog.create(
+            {
+                tableId: userData.id,
+                action: action.UPDATE,
+                tableName: table_name.USERS,
+                updatedFields: updatedFields.join(','),
+                isSynced: false,
+                data: JSON.stringify(userData),
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }
+        );
 
         // console.log('changeLogData', changeLogData);
 
-        res.status(200).send({
-            success: true,
-            message: 'User updated successfully',
-            data: userData
-        });
+        res.status(200).send(
+            {
+                success: true,
+                message: 'User updated successfully',
+                data: userData
+            }
+        );
     }
     catch (error)
     {
@@ -191,15 +204,17 @@ deleteUser = async (req, res) =>
 
         // console.log('userData', userData);
 
-        const changeLogData = await ChangeLog.create({
-            userId: userData.id,
-            action: action.DELETE,
-            tableName: table_name.USERS,
-            isSynced: false,
-            data: JSON.stringify(userData),
-            createdAt: new Date(),
-            updatedAt: new Date()
-        });
+        const changeLogData = await ChangeLog.create(
+            {
+                tableId: userData.id,
+                action: action.DELETE,
+                tableName: table_name.USERS,
+                isSynced: false,
+                data: JSON.stringify(userData),
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }
+        );
         
         // console.log('changeLogData', changeLogData);
 
