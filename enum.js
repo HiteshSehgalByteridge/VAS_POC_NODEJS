@@ -8,7 +8,8 @@ const action =
 
 const table_name =
 {
-    USERS: 'USERS'
+    USERS: 'USERS',
+    BOOKS: 'BOOKS'
 }
 
 module.exports =
