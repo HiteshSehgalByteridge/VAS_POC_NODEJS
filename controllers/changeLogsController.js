@@ -290,6 +290,8 @@ getChangeLogsV2 = async (req, res) =>
     }
 };
 
+// This is the main one
+
 getChangeLogsV3 = async (req, res) =>
 {
     try
@@ -706,6 +708,205 @@ getChangeLogsV4 = async (req, res) =>
     }
 };
 
+getChangeLogsGeneric = async (req, res) =>
+{
+    try
+    {
+        const { timeStamp } = req.body;
+
+        // Fetching records from ChangeLog table which are not synced yet
+        // and have updatedAt value greater than input timestamp value
+
+        let changeLogData = await ChangeLog.findAll(
+            {
+                where:
+                {
+                    updatedAt:
+                    {
+                        [Op.gte]: new Date(timeStamp)
+                    },
+                    isSynced: false
+                }
+            }
+        );
+
+        changeLogData = changeLogData.map(record => record.toJSON());
+
+        // console.log('changeLogData', changeLogData);
+
+        // Converting 'data' field object coming from ChangeLog table records from String to Object
+        // And fetching IDs of ChangeLog table records in an array
+
+        let changeLogDataIDs = [];
+
+        for(let i=0; i<=changeLogData.length-1; i++)
+        {
+            changeLogData[i].data = JSON.parse(changeLogData[i].data);
+
+            changeLogDataIDs.push(changeLogData[i].id);
+        }
+
+        // console.log('changeLogDataIDs', changeLogDataIDs);
+
+        // Updating fetched ChangeLogs table records to mark them as synced
+
+        const updateChangeLogs = await ChangeLog.update(
+            {
+                isSynced: true
+            },
+            {
+                where:
+                {
+                    id: changeLogDataIDs
+                }
+            }
+        );
+
+        // console.log('updateChangeLogs', updateChangeLogs);
+
+        // Creating a map object
+        // In this map object we will have tableIds which are present in changeLogs array as keys.
+        // And the values against these tableId keys will be arrays containing objects 
+        // for each action which is performed and is present for that particular tableId
+
+        let tableIdMap1 = {};
+
+        for(let i=0; i<=changeLogData.length-1; i++)
+        {
+            const currentObject = changeLogData[i];
+
+            // console.log('currentObject', currentObject);
+            
+            const tableId = currentObject.tableId;
+
+            if(tableIdMap1.hasOwnProperty(tableId))
+            {
+                tableIdMap1[tableId].push(currentObject);  
+            }
+            else
+            {
+                tableIdMap1[tableId] = [currentObject];
+            }
+        }
+
+        // console.log('tableIdMap1', tableIdMap1);
+
+        // Parsing through the tableId Map object
+        // Parsing through the array of each object and checking if action is UPDATE or DELETE
+        // Parsing through the updatedFields array of each object of action type UPDATE or DELETE
+        // While parsing through each updatedFields array, we collect the field name and store it one array
+        // This array is being stored in a seperate tableId Map Object containing same tableId keys as previous map object
+        // This array will contain only unique field names
+        // If action is DELETE then 'isActive' field name is being added
+
+        let tableIdMap2 = {};
+
+        for (const tableId in tableIdMap1)
+        {
+            let tableIdArray = tableIdMap1[tableId];
+
+            let updatedFieldsArray = [];
+
+            for(let i=0; i<=tableIdArray.length-1; i++)
+            {
+                let tempAction = tableIdArray[i].action;
+                
+                if(tempAction == action.UPDATE)
+                {
+                    let updatedFieldsString = tableIdArray[i].updatedFields;
+
+                    if(updatedFieldsString != null)
+                    {
+                        let tempArray = updatedFieldsString.split(',').map(s => s.trim());
+
+                        tempArray.forEach(item =>
+                        {
+                            if (!updatedFieldsArray.includes(item))
+                            {
+                                updatedFieldsArray.push(item);
+                            }
+                        });
+                    }
+                }
+
+                if(tempAction == action.DELETE)
+                {
+                    if (!updatedFieldsArray.includes('isActive'))
+                    {
+                        updatedFieldsArray.push('isActive');
+                    }
+                }
+            }
+
+            tableIdMap2[tableId] = updatedFieldsArray;
+        }
+
+        // console.log('tableIdMap2', tableIdMap2);
+
+        // Parsing through the tableId Map object
+        // Parsing through the array of each object and filtering each array
+        // to keep only a single object with the latest updatedAt date
+
+        let tableIdMap3 = {};
+
+        for (const tableId in tableIdMap1)
+        {
+            let tableIdArray = tableIdMap1[tableId];
+
+            let latestObject = tableIdArray[0];
+
+            for (let i = 1; i <= tableIdArray.length-1; i++)
+            {
+                if (new Date(tableIdArray[i].updatedAt) > new Date(latestObject.updatedAt))
+                {
+                    latestObject = tableIdArray[i];
+                }
+            }
+
+            tableIdMap3[tableId] = latestObject;
+        }
+
+        // console.log('tableIdMap3', tableIdMap3);
+
+        // Merging the new tableId map containing only updatedFields array with the existing tableId map
+
+        for (const tableId in tableIdMap2)
+        {
+            if (tableIdMap3.hasOwnProperty(tableId))
+            {
+                tableIdMap3[tableId].updatedFields = tableIdMap2[tableId];
+            }
+        }
+
+        // console.log('Merged tableIdMap3', tableIdMap3);
+
+        // Converting tableId map object to an array of objects
+        // Here values of each tableId object in the map is added to the filteredArray
+        
+        let filteredArray = Object.values(tableIdMap3);
+
+        // console.log('filteredArray', filteredArray);
+
+        res.status(200).send(
+            {
+                success: true,
+                message: 'getChangeLogs method is called',
+                data: filteredArray
+            }
+        );
+    }
+    catch(error)
+    {
+        res.status(500).send(
+            {
+                success: false,
+                message: 'getChangeLogs method is called',
+                error: error.toString()
+            }
+        );
+    }
+};
+
 syncData = async (req, res) =>
 {
     try
@@ -973,5 +1174,6 @@ module.exports =
     getChangeLogsV2,
     getChangeLogsV3,
     getChangeLogsV4,
+    getChangeLogsGeneric,
     syncData
 };

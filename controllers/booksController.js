@@ -116,12 +116,14 @@ updateBook = async (req, res) =>
         if (author != undefined && book.author !== author)
         {
             updatedFields.push('author');
+
             book.author = author;
         }
 
         if (releaseYear != undefined && book.releaseYear !== releaseYear)
         {
             updatedFields.push('releaseYear');
+
             book.releaseYear = releaseYear;
         }
 
