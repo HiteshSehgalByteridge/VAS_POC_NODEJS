@@ -7,7 +7,8 @@ const sequelize = new Sequelize(
     'root', // Password
     {
         host: 'localhost',
-        dialect: 'mysql'
+        dialect: 'mysql',
+        logging: false
     }
 );
 

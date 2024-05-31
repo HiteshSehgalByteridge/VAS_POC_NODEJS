@@ -1,5 +1,6 @@
 
 const { action, table_name } = require('../enum');
+const { Book } = require('../models/book');
 const { ChangeLog } = require('../models/changeLog');
 const { User } = require('../models/user');
 
@@ -1168,6 +1169,318 @@ syncData = async (req, res) =>
     }
 };
 
+syncDataGeneric = async (req, res) =>
+{
+    try
+    {
+        // BE will recieve an array of objects from FE
+        // Objects will be from changeLogs table
+        // Incoming data will be arranged in increasing order of createdAt
+
+        const { changeLogArray } = req.body;
+
+        // console.log('changeLogArray', changeLogArray);
+
+        // We will run a for loop on this incoming data
+
+        // If changeLogArray is coming from FE, it will be a stringified object that we need to parse
+        // If changeLogArray is coming from Postman, it doesn't need to be parsified and can be used directly
+
+        const changeLogArrayParsed = typeof(changeLogArray) != 'object' ? JSON.parse(changeLogArray) : changeLogArray;
+
+        // console.log('changeLogArrayParsed', changeLogArrayParsed);
+
+        // Incoming array of objects from FE will contain an action in each object
+        // Based on the action, whether it is INSERT, UPDATE or DELETE
+        // corresponding action will be performed in the BE
+        // For each action an object will be added to BE ChangeLogs table
+        // and respective action will be performed in the users table or books table or any other new table that may get added in the future
+        // isSynced will be set as true itself while creating records in ChangeLogs table
+        // Note: We are not copy pasting object received from FE directly to ChangeLogs table
+        // instead we are creating them manually after making changes in the users table or books table etc
+
+        if(changeLogArrayParsed != undefined)
+        {
+            for(let i=0; i<=changeLogArrayParsed?.length-1; i++)
+            {
+                let inputAction = changeLogArrayParsed[i].action;
+
+                let inputTableName = changeLogArrayParsed[i].tableName;
+
+                let modelName = User;
+
+                if(inputTableName == table_name.USERS)
+                {
+                    modelName = User;    
+                }
+                else if(inputTableName == table_name.BOOKS)
+                {
+                    modelName = Book;    
+                }
+                
+                // console.log('modelName', modelName);
+
+                let tableId = changeLogArrayParsed[i].tableId;
+
+                let data = changeLogArrayParsed[i].data;
+
+                // console.log('data', data);
+
+                const { id, createdAt, updatedAt, isActive, ...rest } = data;
+
+                // console.log('rest', rest);
+
+                let updatedFieldsArray = changeLogArrayParsed[i]?.updatedFields;
+
+                let updatedFieldsString = updatedFieldsArray?.map(str => str.trim()).join(',');
+
+                // console.log('updatedFieldsString', updatedFieldsString);
+
+                if(inputAction == action.INSERT)
+                {
+                    // Checking if record is present in users/books/new table
+
+                    const tableRecord = await modelName.findOne(
+                        {
+                            where:
+                            {
+                                id: tableId
+                            }
+                        }
+                    );
+        
+                    // console.log('tableRecord', tableRecord);
+
+                    // If record is already present with the same ID then don't add
+
+                    if(tableRecord)
+                    {
+                        continue;
+                    }
+                    
+                    // If record is not present with the same ID, then create record in users/books/new table
+
+                    const tableData = await modelName.create(
+                        {
+                            id,
+                            ...rest,
+                            isActive: true,
+                            createdAt: new Date(createdAt),
+                            updatedAt: new Date(updatedAt)
+                        }
+                    );
+            
+                    // console.log('tableData', tableData);
+
+                    // Create record in ChangeLogs table
+            
+                    const changeLogData = await ChangeLog.create(
+                        {
+                            tableId: tableData.id,
+                            action: inputAction,
+                            tableName: inputTableName,
+                            isSynced: true,
+                            data: JSON.stringify(data),
+                            updatedFields: null,
+                            createdAt: new Date(changeLogArrayParsed[i].createdAt),
+                            updatedAt: new Date(changeLogArrayParsed[i].updatedAt)
+                        }
+                    );
+            
+                    // console.log('changeLogData', changeLogData);
+                }
+                else if(inputAction == action.UPDATE)
+                {
+                    // Checking if record is present in users/books/new table
+
+                    let tableRecord = await modelName.findOne(
+                        {
+                            where:
+                            {
+                                id: tableId
+                            }
+                        }
+                    );
+        
+                    // console.log('tableRecord', tableRecord);
+
+                    // If record is present in users/books/new table, then we will not create it again.
+                    // We will just update it acc. to requirements and create a record in ChangeLogs table
+
+                    // If record is not present in users/books/new table, then we will first create it.
+                    // And then we will create a record in ChangeLogs table
+
+                    if(tableRecord)
+                    {
+                        // Updating values of existing users/books/new table record
+
+                        Object.assign(tableRecord, rest);
+
+                        tableRecord.isActive = isActive;
+                        tableRecord.updatedAt = new Date(updatedAt);
+                        
+                        const tableData = await tableRecord.save();
+
+                        // console.log('tableData', tableData);
+
+                        // Creating a new record in ChangeLogs table
+
+                        const changeLogData = await ChangeLog.create(
+                            {
+                                tableId: tableData.id,
+                                action: inputAction,
+                                tableName: inputTableName,
+                                isSynced: true,
+                                data: JSON.stringify(data),
+                                updatedFields: updatedFieldsString,
+                                createdAt: new Date(changeLogArrayParsed[i].createdAt),
+                                updatedAt: new Date(changeLogArrayParsed[i].updatedAt)
+                            }
+                        );
+                
+                        // console.log('changeLogData', changeLogData);
+                    }
+                    else
+                    {
+                        // Creating a new record in users/books/new table
+
+                        const tableData = await modelName.create(
+                            {
+                                id,
+                                ...rest,
+                                isActive: isActive,
+                                createdAt: new Date(createdAt),
+                                updatedAt: new Date(updatedAt)
+                            }
+                        );
+                
+                        // console.log('tableData', tableData);
+
+                        // Creating a new record in ChangeLogs table
+                
+                        const changeLogData = await ChangeLog.create(
+                            {
+                                tableId: tableData.id,
+                                action: inputAction,
+                                tableName: inputTableName,
+                                isSynced: true,
+                                data: JSON.stringify(data),
+                                updatedFields: updatedFieldsString,
+                                createdAt: new Date(changeLogArrayParsed[i].createdAt),
+                                updatedAt: new Date(changeLogArrayParsed[i].updatedAt)
+                            }
+                        );
+                
+                        // console.log('changeLogData', changeLogData);
+                    }
+                }
+                else if(inputAction == action.DELETE)
+                {
+                    // Checking if record is present in users/books/new table
+
+                    const tableRecord = await modelName.findOne(
+                        {
+                            where:
+                            {
+                                id: tableId
+                            }
+                        }
+                    );
+        
+                    // console.log('tableRecord', tableRecord);
+
+                    // If record is present in users/books/new table, then we will not create it again.
+                    // We will just update it acc. to requirements and create a record in ChangeLogs table
+
+                    // If record is not present in users/books/new table, then we will first create it.
+                    // And then we will create a record in ChangeLogs table
+
+                    if(tableRecord)
+                    {
+                        // Updating values of existing users/books/new table record
+
+                        Object.assign(tableRecord, rest);
+
+                        tableRecord.isActive = false;
+                        tableRecord.updatedAt = new Date(updatedAt);
+
+                        const tableData = await tableRecord.save();
+
+                        // console.log('tableData', tableData);
+
+                        // Creating a new record in ChangeLogs table
+
+                        const changeLogData = await ChangeLog.create(
+                            {
+                                tableId: tableData.id,
+                                action: inputAction,
+                                tableName: inputTableName,
+                                isSynced: true,
+                                data: JSON.stringify(data),
+                                updatedFields: updatedFieldsString, 
+                                createdAt: new Date(changeLogArrayParsed[i].createdAt),
+                                updatedAt: new Date(changeLogArrayParsed[i].updatedAt)
+                            }
+                        );
+                
+                        // console.log('changeLogData', changeLogData);
+                    }
+                    else
+                    {
+                        // Creating a new record in users/books/new table
+
+                        const tableData = await modelName.create(
+                            {
+                                id,
+                                ...rest,
+                                isActive: isActive,
+                                createdAt: new Date(createdAt),
+                                updatedAt: new Date(updatedAt)
+                            }
+                        );
+                
+                        // console.log('tableData', tableData);
+                
+                        // Creating a new record in ChangeLogs table
+
+                        const changeLogData = await ChangeLog.create(
+                            {
+                                tableId: tableData.id,
+                                action: inputAction,
+                                tableName: inputTableName,
+                                isSynced: true,
+                                data: JSON.stringify(data),
+                                updatedFields: updatedFieldsString,
+                                createdAt: new Date(changeLogArrayParsed[i].createdAt),
+                                updatedAt: new Date(changeLogArrayParsed[i].updatedAt)
+                            }
+                        );
+                
+                        // console.log('changeLogData', changeLogData);
+                    }
+                }
+            }
+        }
+
+        res.status(200).send(
+            {
+                success: true,
+                message: 'syncData method is called'
+            }
+        );
+    }
+    catch(error)
+    {
+        res.status(500).send(
+            {
+                success: false,
+                message: 'syncData method is called',
+                error: error.toString()
+            }
+        );
+    }
+};
+
 module.exports =
 {
     getChangeLogs,
@@ -1175,5 +1488,6 @@ module.exports =
     getChangeLogsV3,
     getChangeLogsV4,
     getChangeLogsGeneric,
-    syncData
+    syncData,
+    syncDataGeneric
 };
